@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem with v0-reimagine
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, Vercel tokens, private source, or private chat URLs.
+  - type: input
+    id: version
+    attributes:
+      label: v0-reimagine version
+      placeholder: Output of v0-reimagine --version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15, Node.js 22, pnpm project
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the redacted command, observed output, and smallest safe example.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
