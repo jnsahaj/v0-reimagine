@@ -25,8 +25,20 @@ base URL can be overridden for testing.
 
 ## Install
 
-Node.js 20 or newer is required. The package is ready for npm publication; until it is
-published, install it from source:
+Node.js 20 or newer is required. Run it directly without installing:
+
+```sh
+npx v0-reimagine
+npx v0-reimagine "Warm editorial direction with unusually good typography"
+```
+
+Or install the command globally:
+
+```sh
+npm install --global v0-reimagine
+```
+
+To work on the CLI itself, install it from source:
 
 ```sh
 git clone https://github.com/jnsahaj/v0-reimagine.git

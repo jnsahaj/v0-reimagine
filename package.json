@@ -19,7 +19,7 @@
     "website"
   ],
   "bin": {
-    "v0-reimagine": "./dist/cli.js"
+    "v0-reimagine": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -31,7 +31,8 @@
   },
   "packageManager": "pnpm@10.13.1",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -39,6 +40,7 @@
     "dev": "tsx src/cli.ts",
     "format": "biome check --write .",
     "lint": "biome check .",
+    "prepublishOnly": "pnpm check",
     "test": "vitest run",
     "test:cli": "node test/cli-smoke.mjs",
     "test:watch": "vitest",
