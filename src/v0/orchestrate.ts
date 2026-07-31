@@ -1,3 +1,4 @@
+import { CliError } from '../errors.js'
 import {
   createSnapshot,
   formatBytes,
@@ -103,17 +104,18 @@ export async function runReimagination(input: {
   }
 
   const chatUrl = resolveChatUrl(imported.chat)
+  output.info(`Chat: ${imported.chat.id} (${chatUrl})`)
   if (
     imported.chat.vercelProjectId &&
     project.vercel.projectId &&
     imported.chat.vercelProjectId !== project.vercel.projectId
   ) {
-    output.warn(
-      `v0 associated chat ${imported.chat.id} with Vercel project ${imported.chat.vercelProjectId}, not detected project ${project.vercel.projectId}.`,
+    output.info(
+      `Vercel: v0 connected the imported repository to project ${imported.chat.vercelProjectId}; your local link remains ${project.vercel.projectId} and was not modified.`,
     )
   } else if (project.vercel.projectId && !imported.chat.vercelProjectId) {
-    output.warn(
-      'The existing Vercel project was detected but v0 did not attach it. No duplicate project was created.',
+    output.info(
+      `Vercel: local project ${project.vercel.projectId} was provided as context; v0 did not report a chat association.`,
     )
   }
 
@@ -128,13 +130,47 @@ export async function runReimagination(input: {
     },
     (event) => output.spinnerText(streamStatus(event)),
   )
-  const message = await resolveInteractions({
+  let finalUsage = streamed.usage
+  const initialMessage =
+    streamed.finalMessage ??
+    (await client.getLatestAssistantMessage(imported.chat.id).catch(() => undefined))
+  let message = await resolveInteractions({
     chatUrl,
     client,
     cli,
-    ...(streamed.finalMessage ? { message: streamed.finalMessage } : {}),
+    ...(initialMessage ? { message: initialMessage } : {}),
     output,
   })
+  if (!hasImplementationEdits(message)) {
+    output.spinner('Ensuring v0 implements the reimagination…')
+    const implementation = await client.sendMessageStream(
+      imported.chat.id,
+      {
+        imageGenerations: cli.imageGenerations,
+        message:
+          'Implement the reimagination now. Do not return another plan or an explanation-only response. Make substantive edits to the application UI, preserve its functionality, run the relevant checks, and finish with a concise summary.',
+        model: cli.model,
+        systemPrompt: buildSystemPrompt(project),
+      },
+      (event) => output.spinnerText(streamStatus(event)),
+    )
+    finalUsage = implementation.usage ?? finalUsage
+    const implementationMessage =
+      implementation.finalMessage ??
+      (await client.getLatestAssistantMessage(imported.chat.id).catch(() => undefined))
+    message = await resolveInteractions({
+      chatUrl,
+      client,
+      cli,
+      ...(implementationMessage ? { message: implementationMessage } : {}),
+      output,
+    })
+  }
+  if (!hasImplementationEdits(message)) {
+    throw new CliError('v0 stopped without implementing the reimagination.', {
+      hint: `Continue in ${chatUrl}`,
+    })
+  }
   const chat = await client.getChat(imported.chat.id).catch(() => imported.chat)
   output.success('Reimagination ready')
   return {
@@ -143,8 +179,23 @@ export async function runReimagination(input: {
     ...(message ? { message } : {}),
     project,
     source,
-    usage: streamed.usage ?? message?.usage ?? imported.usage,
+    usage: finalUsage ?? message?.usage ?? imported.usage,
   }
+}
+
+function hasImplementationEdits(message?: ReimagineResult['message']): boolean {
+  return Boolean(
+    message?.parts.some(
+      (part) =>
+        part.type === 'file-edit' &&
+        typeof part.path === 'string' &&
+        !isPlanArtifact(part.path),
+    ),
+  )
+}
+
+function isPlanArtifact(path: string): boolean {
+  return /^(?:\.v0(?:[-_/]|$)|v0[-_]plans?(?:\/|$))/i.test(path)
 }
 
 export function dryRunSummary(prepared: PreparedRun): Record<string, unknown> {

@@ -89,7 +89,8 @@ export async function reimagineCommand(
       message: result.message?.content,
     })
   } else {
-    output.result(result.chatUrl)
+    output.info(`Chat URL: ${result.chatUrl}`)
+    output.result(result.chat.id)
   }
   if (options.open) {
     await open(result.chatUrl).catch((error) => {

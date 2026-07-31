@@ -9,14 +9,14 @@ instructions to redesign the UI without discarding the application that already 
 ```console
 $ cd my-web-project
 $ v0-reimagine "Warm editorial direction with unusually good typography"
-V0 Reimagine CLI 0.1.0 (Node.js 22.19.0)
+V0 Reimagine CLI 0.1.2 (Node.js 22.19.0)
 
 > Project: my-web-project
 > GitHub: https://github.com/acme/my-web-project@main
 > Vercel: acme/my-web-project
 > Source: github
 ...
-https://v0.app/chat/...
+6fDpbDcPsSj
 ```
 
 The CLI is built against the [v0 Platform API v2](https://v0.app/docs/api/v2).
@@ -115,8 +115,9 @@ integrations, and the monorepo root.
 
 The documented v0 API currently exposes project creation, but not an endpoint for
 forcibly attaching an existing Vercel project to a chat. This CLI therefore never creates
-a replacement project. It keeps the existing project as context, accepts an association
-returned naturally by repository import, and warns if v0 reports a different association.
+a replacement project. It keeps the existing project as context and accepts an association
+returned naturally by repository import. If that association differs from the local link,
+the CLI explains both IDs and leaves the local project untouched.
 
 ## Commands
 
@@ -142,7 +143,7 @@ returned naturally by repository import, and warns if v0 reports a different ass
 | `--zip-url URL` | Use an already-hosted ZIP URL for local mode |
 | `--max-upload-mb NUMBER` | Maximum data-URL ZIP size before inline fallback; default `50` |
 | `--dry-run` | Inspect the complete plan without authenticating or uploading |
-| `--open`, `--no-open` | Control browser handoff after completion |
+| `--open`, `--no-open` | Open the completed chat; the default is no browser |
 
 ### Global options
 
@@ -156,7 +157,7 @@ The naming and aliases intentionally follow the official Vercel CLI:
 | `-d`, `--debug` | Enable request and detection diagnostics |
 | `--no-color` | Disable color and emoji output |
 | `--non-interactive` | Never ask for terminal input |
-| `-y`, `--yes` | Accept safe defaults, including v0 plan approval |
+| `-y`, `--yes` | Accept safe CLI confirmation defaults |
 | `-S`, `--scope SCOPE` | Set the Vercel scope |
 | `-T`, `--team TEAM` | Set the Vercel team slug or ID |
 | `--project NAME_OR_ID` | Override the detected Vercel project |
@@ -164,20 +165,25 @@ The naming and aliases intentionally follow the official Vercel CLI:
 | `-F`, `--format human\|json` | Select output format |
 | `-Q`, `--global-config DIR` | Override the global config directory |
 
-In human mode, progress and diagnostics go to stderr while the final v0 chat URL goes to
-stdout, which keeps command substitution and piping useful. JSON mode writes one result
-object to stdout and suppresses human progress.
+In human mode, progress and the chat URL go to stderr while stdout contains only the final
+v0 chat ID, which keeps command substitution and piping useful. The command exits without
+opening a browser unless `--open` is explicit. JSON mode writes one result object to stdout
+and suppresses human progress.
 
 ## Interactive v0 tasks
 
 v0 can pause generation to present a plan, ask design questions, or request permissions.
 The CLI supports all three documented task shapes:
 
-- Plans are shown for approval. `--yes` approves them automatically.
+- Plans are always approved automatically so v0 proceeds to implementation.
 - Questions use terminal select, checkbox, or text prompts.
 - Requested permissions require an explicit confirmation and default to denied.
 - In non-interactive mode, unresolved questions or permissions are left in the chat and
   its URL is printed so work can continue safely in v0.
+
+The CLI does not report success until v0 has returned substantive application file edits.
+If the first response contains only a plan or explanation, it automatically asks v0 to
+implement once more; a second non-implementation response exits with an actionable error.
 
 ## Development
 

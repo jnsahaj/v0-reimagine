@@ -12,6 +12,13 @@ describe('parseArguments', () => {
     expect(options.model).toBe('v0-pro')
     expect(options.privacy).toBe('private')
     expect(options.maxUploadMb).toBe(50)
+    expect(options.open).toBe(false)
+  })
+
+  it('opens the browser only when --open is explicit', () => {
+    expect(parseArguments([]).open).toBe(false)
+    expect(parseArguments(['--open']).open).toBe(true)
+    expect(parseArguments(['--open', '--no-open']).open).toBe(false)
   })
 
   it('supports Vercel-style aliases and explicit commands', () => {

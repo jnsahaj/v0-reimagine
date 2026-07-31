@@ -98,6 +98,39 @@ describe('V0Client', () => {
     expect(debug).toHaveBeenCalledWith(expect.stringContaining('HTTP 422'))
     expect(debug).toHaveBeenCalledWith(expect.stringContaining('byte body'))
   })
+
+  it('reads the latest assistant message from the chat', async () => {
+    const assistant = {
+      chatId: 'chat_123',
+      content: 'Done',
+      finishReason: 'stop',
+      id: 'message_2',
+      parts: [],
+      role: 'assistant',
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            cursor: null,
+            messages: [assistant, { ...assistant, id: 'message_1', role: 'user' }],
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const client = new V0Client({
+      apiKey: 'v0_test',
+      baseUrl: 'https://api.v0.dev/v2',
+      version: '0.1.0',
+    })
+
+    await expect(client.getLatestAssistantMessage('chat_123')).resolves.toMatchObject({
+      id: 'message_2',
+      role: 'assistant',
+    })
+  })
 })
 
 describe('parseSse', () => {
@@ -110,6 +143,16 @@ describe('parseSse', () => {
     for await (const event of parseSse(response)) events.push(event)
 
     expect(events).toEqual([{ object: 'thinking', step: 1 }])
+  })
+
+  it('flushes a final event without a trailing blank line', async () => {
+    const response = new Response('data: {"object":"message","id":"final"}', {
+      headers: { 'Content-Type': 'text/event-stream' },
+    })
+    const events = []
+    for await (const event of parseSse(response)) events.push(event)
+
+    expect(events).toEqual([{ object: 'message', id: 'final' }])
   })
 })
 

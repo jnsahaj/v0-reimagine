@@ -48,6 +48,11 @@ export const messageSchema = z
   })
   .passthrough()
 
+export const messageListSchema = z.object({
+  messages: z.array(messageSchema),
+  cursor: z.string().nullable(),
+})
+
 export const chatListSchema = z.object({
   chats: z.array(chatSchema),
   cursor: z.string().nullable(),

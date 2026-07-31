@@ -16,25 +16,38 @@ function message(parts: V0Message['parts']): V0Message {
 }
 
 describe('resolveInteractions', () => {
-  it('auto-approves an implementation plan only when --yes is set', async () => {
+  it('always auto-approves an implementation plan', async () => {
     const finished = message([])
     const resolveTask = vi.fn().mockResolvedValue(finished)
-    const output = { spinner: vi.fn(), warn: vi.fn() } as unknown as Output
+    const output = {
+      info: vi.fn(),
+      spinner: vi.fn(),
+      warn: vi.fn(),
+    } as unknown as Output
 
     const result = await resolveInteractions({
       chatUrl: 'https://v0.app/chat/chat_123',
       client: { resolveTask } as unknown as V0Client,
-      cli: { nonInteractive: true, yes: true } as CliOptions,
+      cli: {
+        imageGenerations: false,
+        model: 'v0-pro',
+        nonInteractive: true,
+        yes: false,
+      } as CliOptions,
       message: message([{ type: 'agent-action', name: 'exit_plan_mode' }]),
       output,
     })
 
     expect(result).toBe(finished)
-    expect(resolveTask).toHaveBeenCalledWith('chat_123', {
-      type: 'plan-exit-response',
-      status: 'approved',
-      content: 'Proceed with the implementation and verification.',
-    })
+    expect(resolveTask).toHaveBeenCalledWith(
+      'chat_123',
+      {
+        type: 'plan-exit-response',
+        status: 'approved',
+        content: 'Proceed with the implementation and verification.',
+      },
+      { imageGenerations: false, modelId: 'v0-pro' },
+    )
   })
 
   it('leaves non-plan questions for the v0 web UI in non-interactive mode', async () => {

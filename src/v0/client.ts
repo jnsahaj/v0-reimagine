@@ -6,6 +6,7 @@ import {
   chatListSchema,
   chatSchema,
   importResponseSchema,
+  messageListSchema,
   messageSchema,
 } from './schemas.js'
 
@@ -85,10 +86,22 @@ export class V0Client {
     return this.request(`/chats/${encodeURIComponent(chatId)}`, { schema: chatSchema })
   }
 
-  async resolveTask(chatId: string, task: Record<string, unknown>): Promise<V0Message> {
+  async getLatestAssistantMessage(chatId: string): Promise<V0Message | undefined> {
+    const result = await this.request<{ cursor: string | null; messages: V0Message[] }>(
+      `/chats/${encodeURIComponent(chatId)}/messages?limit=10`,
+      { schema: messageListSchema },
+    )
+    return result.messages.find((message) => message.role === 'assistant')
+  }
+
+  async resolveTask(
+    chatId: string,
+    task: Record<string, unknown>,
+    modelConfiguration?: { imageGenerations: boolean; modelId: ModelId },
+  ): Promise<V0Message> {
     return this.request(`/chats/${encodeURIComponent(chatId)}/messages/resolve`, {
       method: 'POST',
-      body: { task },
+      body: { task, ...(modelConfiguration ? { modelConfiguration } : {}) },
       schema: messageSchema,
     })
   }
@@ -123,14 +136,19 @@ export class V0Client {
     let usage: Usage | undefined
     for await (const event of parseSse(response)) {
       onEvent?.(event)
-      if (event.object === 'error') {
-        throw new CliError(String(event.message ?? 'v0 stream failed.'))
+      const data = isRecord(event.data) ? event.data : event
+      if (event.object === 'error' || data.object === 'error') {
+        throw new CliError(String(data.message ?? 'v0 stream failed.'))
       }
-      if (event.object === 'message.usage' && event.usage) {
-        usage = event.usage as Usage
+      if (
+        (event.object === 'message.usage' || data.object === 'message.usage') &&
+        data.usage
+      ) {
+        usage = data.usage as Usage
       }
-      if (event.object === 'message' || event.role === 'assistant') {
-        const parsed = messageSchema.safeParse(event)
+      for (const candidate of [event, data, event.message, data.message]) {
+        if (!isRecord(candidate)) continue
+        const parsed = messageSchema.safeParse(candidate)
         if (parsed.success && parsed.data.finishReason !== null)
           finalMessage = parsed.data
       }
@@ -327,18 +345,28 @@ export async function* parseSse(
     const chunks = buffer.split(/\r?\n\r?\n/)
     buffer = chunks.pop() ?? ''
     for (const chunk of chunks) {
-      const data = chunk
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trimStart())
-        .join('\n')
-      if (!data || data === '[DONE]') continue
-      try {
-        yield JSON.parse(data) as Record<string, unknown>
-      } catch {
-        // Ignore keepalive or forward-compatible non-JSON events.
-      }
+      const event = parseSseEvent(chunk)
+      if (event) yield event
     }
-    if (done) break
+    if (done) {
+      const event = parseSseEvent(buffer)
+      if (event) yield event
+      break
+    }
+  }
+}
+
+function parseSseEvent(chunk: string): Record<string, unknown> | undefined {
+  const data = chunk
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+  if (!data || data === '[DONE]') return undefined
+  try {
+    return JSON.parse(data) as Record<string, unknown>
+  } catch {
+    // Ignore keepalive or forward-compatible non-JSON events.
+    return undefined
   }
 }

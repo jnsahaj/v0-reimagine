@@ -8,9 +8,9 @@ direct v2 HTTP requests, so the tool is not coupled to a beta SDK release.
 ```mermaid
 flowchart TD
   A["CLI invocation in web project"] --> B["Inspect package, Git, and Vercel link"]
-  B --> C{"GitHub exactly matches cwd?"}
+  B --> C{"GitHub remote available?"}
   C -->|Yes| D["POST /chats/from-repo"]
-  C -->|No| E["Create secret-safe local snapshot"]
+  C -->|No or explicit local| E["Create secret-safe local snapshot"]
   E --> F{"ZIP under configured limit?"}
   F -->|Yes| G["POST /chats/from-zip"]
   F -->|No| H["POST /chats/from-files"]
@@ -20,7 +20,9 @@ flowchart TD
   I --> J{"Interactive task?"}
   J -->|Plan, questions, permissions| K["POST /chats/:id/messages/resolve"]
   K --> J
-  J -->|Complete| L["GET /chats/:id and print URL"]
+  J -->|Complete| L{"Application file edits exist?"}
+  L -->|No| I
+  L -->|Yes| M["GET /chats/:id and print chat ID"]
 ```
 
 ## Module boundaries
@@ -44,6 +46,8 @@ flowchart TD
 7. Saved API keys are written atomically with owner-only permissions.
 8. Local imports are rejected before authentication if they exceed v0's documented file
    count or per-file limits; source files are never silently truncated.
+9. Plan tasks are resolved automatically, and plan artifacts do not count as an
+   implementation. A successful run requires substantive application file edits.
 
 ## API compatibility
 

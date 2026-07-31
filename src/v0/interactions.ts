@@ -26,15 +26,7 @@ export async function resolveInteractions(options: {
 
     let task: Record<string, unknown> | undefined
     if (interaction.kind === 'plan') {
-      const approved = options.cli.yes
-        ? true
-        : options.cli.nonInteractive
-          ? false
-          : await confirm({ message: 'Approve v0’s implementation plan?', default: true })
-      if (!approved) {
-        options.output.warn(`Plan approval is pending. Continue in ${options.chatUrl}`)
-        return message
-      }
+      options.output.info('v0 proposed a plan; continuing with implementation…')
       task = {
         type: 'plan-exit-response',
         status: 'approved',
@@ -89,7 +81,10 @@ export async function resolveInteractions(options: {
     }
 
     options.output.spinner('Continuing the v0 reimagination…')
-    message = await options.client.resolveTask(message.chatId, task)
+    message = await options.client.resolveTask(message.chatId, task, {
+      imageGenerations: options.cli.imageGenerations,
+      modelId: options.cli.model,
+    })
   }
   if (message && findInteraction(message.parts)) {
     throw new CliError('v0 requested too many consecutive interactions.', {

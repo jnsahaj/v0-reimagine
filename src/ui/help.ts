@@ -39,7 +39,7 @@ REIMAGINE OPTIONS
       --zip-url URL           Use an already-hosted ZIP instead of a local data URL
       --max-upload-mb NUMBER  Maximum data-URL ZIP size (default: 50)
       --dry-run               Inspect exactly what would be sent without uploading
-      --open / --no-open      Control browser handoff
+      --open / --no-open      Open the completed chat (default: no browser)
 ${globalOptions}
 EXAMPLES
   v0-reimagine

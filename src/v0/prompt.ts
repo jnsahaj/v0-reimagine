@@ -17,7 +17,7 @@ Preserve all working functionality, routes, copy, data flows, API calls, authent
 
 Concentrate changes on information hierarchy, layout, navigation, typography, color, spacing, component composition, interaction states, responsive behavior, accessibility, and tasteful motion. The result should feel deliberate, distinctive, polished, and consistent across the primary routes—not like a generic template.
 
-Reuse the existing stack and design-system foundations where possible. Add UI dependencies only when they materially improve the result and are compatible with the project. Proceed through implementation instead of stopping after a plan. Run the project’s existing checks or build and fix issues introduced by your changes.
+Reuse the existing stack and design-system foundations where possible. Add UI dependencies only when they materially improve the result and are compatible with the project. Do not stop in plan mode, do not ask for plan approval, and do not return an explanation-only response. You must make substantive application UI file edits in this run. Run the project’s existing checks or build and fix issues introduced by your changes.
 
 ${focus}
 ${vercelContext}
