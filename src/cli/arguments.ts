@@ -47,7 +47,7 @@ export function parseArguments(argv: string[]): CliOptions {
     invalid('--privacy', privacy, [...privacyValues].join(', '))
   if (!sourceValues.has(source)) invalid('--source', source, [...sourceValues].join(', '))
 
-  const maxUploadMb = numberValue(parsed['--max-upload-mb'] ?? 10, '--max-upload-mb')
+  const maxUploadMb = numberValue(parsed['--max-upload-mb'] ?? 50, '--max-upload-mb')
   if (maxUploadMb <= 0 || maxUploadMb > 100) {
     throw new CliError('--max-upload-mb must be between 1 and 100.', { exitCode: 2 })
   }

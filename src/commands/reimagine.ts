@@ -26,7 +26,7 @@ export async function reimagineCommand(
   output.stopSpinner()
 
   if (options.dryRun) {
-    if (options.format === 'json') output.json(dryRunSummary(prepared, options))
+    if (options.format === 'json') output.json(dryRunSummary(prepared))
     else {
       printProjectSummary(project, prepared.selected, output)
       if (prepared.snapshot) {

@@ -37,7 +37,7 @@ REIMAGINE OPTIONS
       --privacy PRIVACY       private, team, team-edit, unlisted, or public
       --image-generations     Allow v0 to generate images
       --zip-url URL           Use an already-hosted ZIP instead of a local data URL
-      --max-upload-mb NUMBER  Maximum data-URL ZIP size (default: 10)
+      --max-upload-mb NUMBER  Maximum data-URL ZIP size (default: 50)
       --dry-run               Inspect exactly what would be sent without uploading
       --open / --no-open      Control browser handoff
 ${globalOptions}

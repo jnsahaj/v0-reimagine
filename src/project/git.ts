@@ -37,16 +37,21 @@ export async function inspectGit(projectRoot: string): Promise<GitContext | unde
   }
 }
 
-export function githubImportReason(
+export function githubUnavailableReason(
   gitContext: GitContext | undefined,
 ): string | undefined {
   if (!gitContext) return 'the directory is not inside a Git repository'
   if (!gitContext.githubUrl) return 'the active Git remote is not hosted on GitHub'
-  if (!gitContext.branch) return 'the repository is in detached HEAD state'
-  if (!gitContext.upstream) return 'the current branch has no upstream'
-  if (!gitContext.clean) return 'the project contains uncommitted or untracked changes'
+  return undefined
+}
+
+export function githubImportNote(gitContext: GitContext): string | undefined {
+  if (!gitContext.clean)
+    return 'uncommitted and untracked local changes will not be included'
   if (gitContext.ahead > 0)
-    return `the branch is ${gitContext.ahead} commit(s) ahead of its upstream`
+    return `${gitContext.ahead} unpushed commit(s) will not be included`
+  if (!gitContext.upstream)
+    return 'the selected branch is not verified against a GitHub upstream'
   return undefined
 }
 

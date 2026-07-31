@@ -168,7 +168,10 @@ export class V0Client {
     const retries = options.retries ?? 3
 
     for (let attempt = 0; attempt <= retries; attempt += 1) {
-      this.#debug(`${method} ${path} (attempt ${attempt + 1})`)
+      const bodyBytes = body ? Buffer.byteLength(body) : 0
+      this.#debug(
+        `${method} ${path} (attempt ${attempt + 1}${body ? `, ${bodyBytes} byte body` : ''})`,
+      )
       let response: Response
       try {
         response = await fetch(`${this.#baseUrl}${path}`, {
@@ -196,30 +199,118 @@ export class V0Client {
         await delay(Number.isFinite(retryAfter) ? retryAfter * 1000 : 500 * 2 ** attempt)
         continue
       }
-      throw await apiError(response)
+      throw await apiError(response, this.#debug)
     }
 
     throw new CliError('v0 request failed after retrying.')
   }
 }
 
-async function apiError(response: Response): Promise<CliError> {
-  const payload = (await response.json().catch(() => null)) as {
-    error?: { code?: string; message?: string; userMessage?: string }
-    message?: string
-  } | null
+async function apiError(
+  response: Response,
+  debug: (message: string) => void,
+): Promise<CliError> {
+  const payload = (await response.json().catch(() => null)) as unknown
+  const summary = summarizeApiError(payload)
   const message =
-    payload?.error?.userMessage ??
-    payload?.error?.message ??
-    payload?.message ??
-    `v0 API request failed with status ${response.status}.`
+    summary.message ?? `v0 API request failed with status ${response.status}.`
+  debug(
+    `v0 error response: HTTP ${response.status}${summary.code ? `, code ${summary.code}` : ''}${summary.details.length ? `, ${summary.details.join('; ')}` : ''}`,
+  )
   const hint =
     response.status === 401
       ? 'Run `v0-reimagine login` or set V0_API_KEY to a valid key.'
       : response.status === 403
         ? 'Confirm the API key belongs to a v0 Plus, Premium, or eligible team account.'
-        : undefined
-  return new CliError(message, { ...(hint ? { hint } : {}) })
+        : response.status === 422
+          ? summary.details.join('\n') ||
+            'v0 rejected the request parameters. Retry with --debug for endpoint and request-size diagnostics.'
+          : undefined
+  return new CliError(message, {
+    ...(summary.code ? { code: summary.code } : {}),
+    ...(hint ? { hint } : {}),
+    statusCode: response.status,
+  })
+}
+
+function summarizeApiError(payload: unknown): {
+  code?: string
+  details: string[]
+  message?: string
+} {
+  if (!isRecord(payload)) return { details: [] }
+  const error = isRecord(payload.error) ? payload.error : undefined
+  const message = firstString(
+    error?.userMessage,
+    error?.message,
+    typeof payload.error === 'string' ? payload.error : undefined,
+    payload.message,
+  )
+  const code = firstString(error?.code, payload.code)
+  const details: string[] = []
+  for (const source of [
+    payload.detail,
+    payload.details,
+    payload.issues,
+    payload.errors,
+    error?.details,
+  ]) {
+    collectValidationDetails(source, details)
+  }
+  return {
+    ...(code ? { code: sanitizeApiText(code) } : {}),
+    details: [...new Set(details)].slice(0, 5),
+    ...(message ? { message: sanitizeApiText(message) } : {}),
+  }
+}
+
+function collectValidationDetails(value: unknown, output: string[], depth = 0): void {
+  if (value === undefined || value === null || depth > 3 || output.length >= 5) return
+  if (typeof value === 'string') {
+    output.push(sanitizeApiText(value))
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectValidationDetails(item, output, depth + 1)
+    return
+  }
+  if (!isRecord(value)) return
+  const detail = firstString(value.msg, value.message, value.reason)
+  if (detail) {
+    const location = Array.isArray(value.loc)
+      ? value.loc.filter((part) => typeof part === 'string' || typeof part === 'number')
+      : Array.isArray(value.path)
+        ? value.path.filter(
+            (part) => typeof part === 'string' || typeof part === 'number',
+          )
+        : []
+    output.push(
+      sanitizeApiText(`${location.length ? `${location.join('.')}: ` : ''}${detail}`),
+    )
+    return
+  }
+  for (const key of ['detail', 'details', 'issues', 'errors']) {
+    collectValidationDetails(value[key], output, depth + 1)
+  }
+}
+
+function sanitizeApiText(value: string): string {
+  return value
+    .replace(/data:[^;\s]+;base64,[A-Za-z0-9+/=]+/g, '[data URL omitted]')
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, '[credential redacted]')
+    .replace(/\bAKIA[0-9A-Z]{16}\b/g, '[credential redacted]')
+    .replace(/\bxox[baprs]-[A-Za-z0-9-]{20,}\b/g, '[credential redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500)
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  return values.find((value): value is string => typeof value === 'string')
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export async function* parseSse(

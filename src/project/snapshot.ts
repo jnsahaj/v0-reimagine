@@ -6,36 +6,32 @@ import ignore from 'ignore'
 import { CliError } from '../errors.js'
 import type { ProjectSnapshot, SnapshotFile } from '../types.js'
 
-const ALWAYS_EXCLUDE = [
+const ALWAYS_EXCLUDE_DIRECTORIES = [
   '.git',
-  '.git/**',
   '.vercel',
-  '.vercel/**',
+  '.worktrees',
   'node_modules',
-  'node_modules/**',
   'dist',
-  'dist/**',
   'build',
-  'build/**',
   '.next',
-  '.next/**',
   '.nuxt',
-  '.nuxt/**',
   '.svelte-kit',
-  '.svelte-kit/**',
   '.output',
-  '.output/**',
   '.turbo',
-  '.turbo/**',
   'coverage',
-  'coverage/**',
   '.cache',
-  '.cache/**',
   'out',
-  'out/**',
   'target',
-  'target/**',
 ]
+const ALWAYS_EXCLUDE = ALWAYS_EXCLUDE_DIRECTORIES.flatMap((directory) => [
+  directory,
+  `${directory}/**`,
+  `**/${directory}`,
+  `**/${directory}/**`,
+])
+
+export const V0_FILE_LIMIT = 1000
+export const V0_MAX_FILE_BYTES = 3_000_000
 
 const SECRET_FILE_PATTERNS = [
   /(^|\/)\.env(?:\.|$)/,
@@ -135,19 +131,43 @@ export function snapshotAsDataUrl(snapshot: ProjectSnapshot): string {
 export function snapshotAsInlineFiles(
   snapshot: ProjectSnapshot,
 ): Array<{ content: string; name: string }> {
-  const files = snapshot.files
-    .filter((file) => !file.binary && file.size <= 3 * 1024 * 1024)
-    .slice(0, 1000)
-    .map((file) => ({
-      content: Buffer.from(file.content).toString('utf8'),
-      name: file.path,
-    }))
-  if (files.length === 0) {
+  const binaryFiles = snapshot.files.filter((file) => file.binary)
+  if (binaryFiles.length > 0) {
+    throw new CliError(
+      `The local snapshot contains ${binaryFiles.length} binary file(s), which v0's inline-files endpoint cannot represent.`,
+      {
+        hint: hostedZipHint(binaryFiles.map((file) => file.path)),
+      },
+    )
+  }
+  if (snapshot.files.length === 0) {
     throw new CliError(
       'The local snapshot contains no UTF-8 source files suitable for upload.',
     )
   }
-  return files
+  return snapshot.files.map((file) => ({
+    content: Buffer.from(file.content).toString('utf8'),
+    name: file.path,
+  }))
+}
+
+export function validateSnapshotLimits(snapshot: ProjectSnapshot): void {
+  if (snapshot.files.length > V0_FILE_LIMIT) {
+    throw new CliError(
+      `The local snapshot contains ${snapshot.files.length} files, but v0 supports at most ${V0_FILE_LIMIT} files per chat.`,
+      {
+        hint: 'Exclude generated files or unrelated directories with .v0reimagineignore, then retry `v0-reimagine inspect`.',
+      },
+    )
+  }
+
+  const oversized = snapshot.files.filter((file) => file.size > V0_MAX_FILE_BYTES)
+  if (oversized.length > 0) {
+    throw new CliError(
+      `The local snapshot contains ${oversized.length} file(s) larger than v0's 3 MB per-file limit.`,
+      { hint: hostedZipHint(oversized.map((file) => file.path)) },
+    )
+  }
 }
 
 export function formatBytes(bytes: number): string {
@@ -163,4 +183,10 @@ export function projectRelativePath(root: string, file: string): string {
 function isSecretFile(path: string): boolean {
   if (ALLOWED_ENV_EXAMPLES.test(path)) return false
   return SECRET_FILE_PATTERNS.some((pattern) => pattern.test(path))
+}
+
+function hostedZipHint(paths: string[]): string {
+  const preview = paths.slice(0, 5).join(', ')
+  const remainder = paths.length > 5 ? ` and ${paths.length - 5} more` : ''
+  return `Affected: ${preview}${remainder}. Exclude them with .v0reimagineignore or provide a compatible hosted archive with --zip-url.`
 }

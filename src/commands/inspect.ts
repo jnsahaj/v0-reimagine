@@ -16,7 +16,7 @@ export async function inspectCommand(options: CliOptions, output: Output): Promi
   })
   const prepared = await prepareRun(project, options)
   output.stopSpinner()
-  const summary = dryRunSummary(prepared, options)
+  const summary = dryRunSummary(prepared)
   if (options.format === 'json') {
     output.json(summary)
     return

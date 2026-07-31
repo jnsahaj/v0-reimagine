@@ -3,6 +3,7 @@ import {
   formatBytes,
   snapshotAsDataUrl,
   snapshotAsInlineFiles,
+  validateSnapshotLimits,
 } from '../project/snapshot.js'
 import { chooseSource } from '../project/source.js'
 import type {
@@ -21,6 +22,9 @@ export interface PreparedRun {
   project: ProjectContext
   selected: ReturnType<typeof chooseSource>
   snapshot?: ProjectSnapshot
+  upload?:
+    | { type: 'files'; files: Array<{ content: string; name: string }> }
+    | { type: 'zip'; url?: string }
 }
 
 export async function prepareRun(
@@ -32,7 +36,24 @@ export async function prepareRun(
     selected.type === 'local' && !options.zipUrl
       ? await createSnapshot(project.projectRoot)
       : undefined
-  return { project, selected, ...(snapshot ? { snapshot } : {}) }
+  let upload: PreparedRun['upload']
+  if (selected.type === 'local') {
+    if (options.zipUrl) {
+      upload = { type: 'zip', url: options.zipUrl }
+    } else if (snapshot) {
+      validateSnapshotLimits(snapshot)
+      upload =
+        snapshot.archive.byteLength <= options.maxUploadMb * 1024 * 1024
+          ? { type: 'zip' }
+          : { type: 'files', files: snapshotAsInlineFiles(snapshot) }
+    }
+  }
+  return {
+    project,
+    selected,
+    ...(snapshot ? { snapshot } : {}),
+    ...(upload ? { upload } : {}),
+  }
 }
 
 export async function runReimagination(input: {
@@ -69,24 +90,16 @@ export async function runReimagination(input: {
       importOptions,
     )
     source = 'github'
-  } else if (cli.zipUrl) {
-    imported = await client.createFromZip(cli.zipUrl, importOptions)
+  } else if (prepared.upload?.type === 'zip') {
+    const zipUrl =
+      prepared.upload.url ?? snapshotAsDataUrl(prepared.snapshot as ProjectSnapshot)
+    imported = await client.createFromZip(zipUrl, importOptions)
     source = 'zip'
-  } else if (
-    prepared.snapshot &&
-    prepared.snapshot.archive.byteLength <= cli.maxUploadMb * 1024 * 1024
-  ) {
-    imported = await client.createFromZip(
-      snapshotAsDataUrl(prepared.snapshot),
-      importOptions,
-    )
-    source = 'zip'
-  } else {
-    imported = await client.createFromFiles(
-      snapshotAsInlineFiles(prepared.snapshot as ProjectSnapshot),
-      importOptions,
-    )
+  } else if (prepared.upload?.type === 'files') {
+    imported = await client.createFromFiles(prepared.upload.files, importOptions)
     source = 'files'
+  } else {
+    throw new Error('No valid project upload was prepared.')
   }
 
   const chatUrl = resolveChatUrl(imported.chat)
@@ -134,10 +147,7 @@ export async function runReimagination(input: {
   }
 }
 
-export function dryRunSummary(
-  prepared: PreparedRun,
-  cli: CliOptions,
-): Record<string, unknown> {
+export function dryRunSummary(prepared: PreparedRun): Record<string, unknown> {
   const { project, selected, snapshot } = prepared
   return {
     project: {
@@ -164,13 +174,13 @@ export function dryRunSummary(
           inputSize: formatBytes(snapshot.totalBytes),
           archiveBytes: snapshot.archive.byteLength,
           archiveSize: formatBytes(snapshot.archive.byteLength),
-          endpoint:
-            snapshot.archive.byteLength <= cli.maxUploadMb * 1024 * 1024
-              ? 'from-zip'
-              : 'from-files',
-          excluded: snapshot.excluded,
+          endpoint: prepared.upload?.type === 'zip' ? 'from-zip' : 'from-files',
+          excludedCount: snapshot.excluded.length,
+          excluded: snapshot.excluded.slice(0, 200),
+          excludedTruncated: snapshot.excluded.length > 200,
           secretWarnings: snapshot.secretWarnings,
-          files: snapshot.files.map((file) => file.path),
+          files: snapshot.files.slice(0, 200).map((file) => file.path),
+          filesTruncated: snapshot.files.length > 200,
         }
       : null,
   }

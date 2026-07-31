@@ -68,6 +68,36 @@ describe('V0Client', () => {
       hint: expect.stringContaining('v0-reimagine login'),
     })
   })
+
+  it('surfaces safe validation details for rejected uploads', async () => {
+    const debug = vi.fn()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: { code: 'validation_failed' },
+            detail: [{ loc: ['body', 'files'], msg: 'At most 1000 files are supported' }],
+          }),
+          { status: 422 },
+        ),
+      ),
+    )
+    const client = new V0Client({
+      apiKey: 'v0_test',
+      baseUrl: 'https://api.v0.dev/v2',
+      debug,
+      version: '0.1.0',
+    })
+
+    await expect(client.createFromFiles([], importOptions())).rejects.toMatchObject({
+      code: 'validation_failed',
+      hint: 'body.files: At most 1000 files are supported',
+      statusCode: 422,
+    })
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('HTTP 422'))
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('byte body'))
+  })
 })
 
 describe('parseSse', () => {
@@ -82,3 +112,7 @@ describe('parseSse', () => {
     expect(events).toEqual([{ object: 'thinking', step: 1 }])
   })
 })
+
+function importOptions() {
+  return { metadata: {}, privacy: 'private' as const, title: 'Site' }
+}

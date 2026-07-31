@@ -34,13 +34,16 @@ flowchart TD
 
 ## Safety invariants
 
-1. A GitHub import is used only when its upstream is a faithful copy of the local project.
+1. A GitHub import is preferred whenever a GitHub remote exists; any local changes omitted
+   by that choice are disclosed in command output.
 2. Known credential files are never included in a local snapshot.
 3. A likely embedded secret stops a real run before authentication or upload.
 4. Public chat creation requires either terminal confirmation or `--yes`.
 5. v0 permission requests default to denied and are never auto-approved by `--yes`.
 6. The CLI does not call v0's Vercel project-creation endpoint.
 7. Saved API keys are written atomically with owner-only permissions.
+8. Local imports are rejected before authentication if they exceed v0's documented file
+   count or per-file limits; source files are never silently truncated.
 
 ## API compatibility
 

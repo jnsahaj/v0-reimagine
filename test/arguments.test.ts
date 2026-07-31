@@ -11,6 +11,7 @@ describe('parseArguments', () => {
     expect(options.source).toBe('auto')
     expect(options.model).toBe('v0-pro')
     expect(options.privacy).toBe('private')
+    expect(options.maxUploadMb).toBe(50)
   })
 
   it('supports Vercel-style aliases and explicit commands', () => {

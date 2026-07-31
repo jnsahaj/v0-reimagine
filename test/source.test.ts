@@ -28,10 +28,17 @@ describe('chooseSource', () => {
     expect(chooseSource(project(readyGit), 'auto')).toEqual({ type: 'github' })
   })
 
-  it('falls back to a local snapshot for uncommitted work', () => {
+  it('uses GitHub for a linked project and explains that local changes are omitted', () => {
     expect(chooseSource(project({ ...readyGit, clean: false }), 'auto')).toEqual({
+      type: 'github',
+      reason: 'uncommitted and untracked local changes will not be included',
+    })
+  })
+
+  it('falls back to a local snapshot only when GitHub is unavailable', () => {
+    expect(chooseSource(project(), 'auto')).toEqual({
       type: 'local',
-      reason: 'the project contains uncommitted or untracked changes',
+      reason: 'the directory is not inside a Git repository',
     })
   })
 

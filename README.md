@@ -74,21 +74,22 @@ permissions. `V0_API_KEY` and `--token` are also supported and are never persist
 
 ## How source selection works
 
-The default `--source=auto` policy is designed to make v0 see the same code that you see:
+The default `--source=auto` policy prefers the project's existing GitHub repository:
 
-1. GitHub is used when the project has a GitHub remote, the current branch tracks an
-   upstream, it is not ahead of that upstream, and the project has no uncommitted or
-   untracked files.
-2. Otherwise a local snapshot is created. Small snapshots use v0's ZIP import endpoint;
-   larger snapshots fall back to the inline-files endpoint.
-3. `--source=github` or `--source=local` can make the choice explicit. A forced GitHub
-   import still refuses when the remote cannot represent the current working tree.
+1. GitHub is used whenever the project has a GitHub remote. Uncommitted, untracked, and
+   unpushed changes do not change that choice; the CLI clearly notes that they are not
+   represented by the imported repository.
+2. A local snapshot is created only when GitHub is unavailable or `--source=local` is
+   explicit. Small snapshots use v0's ZIP import endpoint; larger text-only snapshots can
+   fall back to the inline-files endpoint.
+3. Use `--source=local` when the reimagination must include working-tree changes.
 
 Local snapshots honor `.gitignore` and an optional `.v0reimagineignore`. They always
-exclude dependency/build directories, `.vercel`, `.env*` credential files, private keys,
-and common credential files. `.env.example`, `.env.sample`, and `.env.template` remain
-eligible. The CLI scans small text files for common embedded credential patterns and
-stops before upload when it finds one.
+exclude nested dependency/build directories, local worktrees, `.vercel`, `.env*`
+credential files, private keys, and common credential files. `.env.example`, `.env.sample`,
+and `.env.template` remain eligible. Before uploading, the CLI enforces v0's 1,000-file
+chat limit and 3 MB per-file limit. It also scans small text files for common embedded
+credential patterns and stops when it finds one.
 
 Use `.v0reimagineignore` for anything else that should never leave the machine:
 
@@ -139,7 +140,7 @@ returned naturally by repository import, and warns if v0 reports a different ass
 | `--privacy PRIVACY` | `private`, `team`, `team-edit`, `unlisted`, or `public`; default `private` |
 | `--image-generations` | Allow v0 to generate supporting imagery |
 | `--zip-url URL` | Use an already-hosted ZIP URL for local mode |
-| `--max-upload-mb NUMBER` | Maximum data-URL ZIP size before inline fallback; default `10` |
+| `--max-upload-mb NUMBER` | Maximum data-URL ZIP size before inline fallback; default `50` |
 | `--dry-run` | Inspect the complete plan without authenticating or uploading |
 | `--open`, `--no-open` | Control browser handoff after completion |
 
@@ -182,7 +183,7 @@ The CLI supports all three documented task shapes:
 
 ```sh
 pnpm install
-pnpm dev -- --help
+pnpm dev --help
 pnpm check
 pnpm build
 ```
