@@ -56,7 +56,9 @@ export function parseArguments(argv: string[]): CliOptions {
     booleanValue(parsed['--non-interactive']) ||
     !process.stdin.isTTY ||
     Boolean(process.env.CI || process.env.CODEX_THREAD_ID || process.env.CLAUDECODE)
-  const shouldOpen = !booleanValue(parsed['--no-open']) && booleanValue(parsed['--open'])
+  const shouldOpen =
+    !booleanValue(parsed['--no-open']) &&
+    (booleanValue(parsed['--open']) || (!nonInteractive && format === 'human'))
 
   return {
     apiUrl: stringValue(

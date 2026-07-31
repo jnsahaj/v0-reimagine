@@ -15,7 +15,7 @@ describe('parseArguments', () => {
     expect(options.open).toBe(false)
   })
 
-  it('opens the browser only when --open is explicit', () => {
+  it('supports explicit browser handoff controls', () => {
     expect(parseArguments([]).open).toBe(false)
     expect(parseArguments(['--open']).open).toBe(true)
     expect(parseArguments(['--open', '--no-open']).open).toBe(false)

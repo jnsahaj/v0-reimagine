@@ -60,6 +60,7 @@ export async function prepareRun(
 export async function runReimagination(input: {
   apiKey: string
   cli: CliOptions
+  onChatCreated?: (chatUrl: string) => Promise<void> | void
   output: Output
   prepared: PreparedRun
   version: string
@@ -104,6 +105,8 @@ export async function runReimagination(input: {
   }
 
   const chatUrl = resolveChatUrl(imported.chat)
+  output.stopSpinner()
+  await input.onChatCreated?.(chatUrl)
   output.info(`Chat: ${imported.chat.id} (${chatUrl})`)
   if (
     imported.chat.vercelProjectId &&

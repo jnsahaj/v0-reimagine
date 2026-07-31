@@ -51,6 +51,7 @@ describe('runReimagination', () => {
       'stop',
     )
     const requests: Array<{ body?: Record<string, unknown>; url: string }> = []
+    const sequence: string[] = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (urlValue: string | URL | Request, init?: RequestInit) => {
@@ -59,9 +60,14 @@ describe('runReimagination', () => {
           ? (JSON.parse(String(init.body)) as Record<string, unknown>)
           : undefined
         requests.push({ ...(body ? { body } : {}), url })
-        if (url.endsWith('/chats/from-repo'))
+        if (url.endsWith('/chats/from-repo')) {
+          sequence.push('chat-created')
           return new Response(JSON.stringify({ chat, usage }), { status: 200 })
-        if (url.endsWith('/messages/stream')) return sse(plan)
+        }
+        if (url.endsWith('/messages/stream')) {
+          sequence.push('generation-started')
+          return sse(plan)
+        }
         if (url.endsWith('/messages/resolve'))
           return new Response(JSON.stringify(implemented), { status: 200 })
         if (url.endsWith(`/chats/${chat.id}`))
@@ -75,11 +81,15 @@ describe('runReimagination', () => {
     const result = await runReimagination({
       apiKey: 'v0_test',
       cli: cliOptions(),
+      onChatCreated: () => {
+        sequence.push('browser-opened')
+      },
       output: {
         debug: vi.fn(),
         info,
         spinner: vi.fn(),
         spinnerText: vi.fn(),
+        stopSpinner: vi.fn(),
         success: vi.fn(),
         warn,
       } as unknown as Output,
@@ -94,6 +104,7 @@ describe('runReimagination', () => {
     })
 
     expect(result.message).toEqual(implemented)
+    expect(sequence).toEqual(['chat-created', 'browser-opened', 'generation-started'])
     expect(
       requests.find((request) => request.url.endsWith('/messages/resolve'))?.body,
     ).toMatchObject({
@@ -164,6 +175,7 @@ function outputMock(): Output {
     info: vi.fn(),
     spinner: vi.fn(),
     spinnerText: vi.fn(),
+    stopSpinner: vi.fn(),
     success: vi.fn(),
     warn: vi.fn(),
   } as unknown as Output

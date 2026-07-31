@@ -68,6 +68,17 @@ export async function reimagineCommand(
   const result = await runReimagination({
     apiKey,
     cli: options,
+    ...(options.open
+      ? {
+          onChatCreated: async (chatUrl: string) => {
+            await open(chatUrl).catch((error) => {
+              output.warn(
+                `Could not open the browser: ${error instanceof Error ? error.message : String(error)}`,
+              )
+            })
+          },
+        }
+      : {}),
     output,
     prepared,
     version,
@@ -97,12 +108,5 @@ export async function reimagineCommand(
       { label: 'URL', value: result.chatUrl },
     ])
     output.result(result.chat.id)
-  }
-  if (options.open) {
-    await open(result.chatUrl).catch((error) => {
-      output.warn(
-        `Could not open the browser: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    })
   }
 }

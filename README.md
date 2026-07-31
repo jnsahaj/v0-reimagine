@@ -9,7 +9,7 @@ instructions to redesign the UI without discarding the application that already 
 ```console
 $ cd my-web-project
 $ v0-reimagine "Warm editorial direction with unusually good typography"
-◆ v0 reimagine 0.1.3
+◆ v0 reimagine 0.1.4
 
   Project          my-web-project
   Directory        /code/my-web-project
@@ -149,7 +149,7 @@ the CLI explains both IDs and leaves the local project untouched.
 | `--zip-url URL` | Use an already-hosted ZIP URL for local mode |
 | `--max-upload-mb NUMBER` | Maximum data-URL ZIP size before inline fallback; default `50` |
 | `--dry-run` | Inspect the complete plan without authenticating or uploading |
-| `--open`, `--no-open` | Open the completed chat; the default is no browser |
+| `--open`, `--no-open` | Control browser handoff when the chat is created |
 
 ### Global options
 
@@ -171,10 +171,11 @@ The naming and aliases intentionally follow the official Vercel CLI:
 | `-F`, `--format human\|json` | Select output format |
 | `-Q`, `--global-config DIR` | Override the global config directory |
 
-In human mode, progress and the chat URL go to stderr while stdout contains only the final
-v0 chat ID, which keeps command substitution and piping useful. The command exits without
-opening a browser unless `--open` is explicit. JSON mode writes one result object to stdout
-and suppresses human progress.
+In an interactive human run, the CLI opens the v0 chat as soon as it is created, then keeps
+generation moving in the terminal while the live chat updates in the browser. Use
+`--no-open` to stay in the terminal. Progress and the chat URL go to stderr while stdout
+contains only the final v0 chat ID, which keeps command substitution and piping useful.
+JSON and non-interactive runs do not open a browser unless `--open` is explicit.
 
 ## Interactive v0 tasks
 
