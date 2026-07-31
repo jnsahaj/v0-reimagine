@@ -9,14 +9,20 @@ instructions to redesign the UI without discarding the application that already 
 ```console
 $ cd my-web-project
 $ v0-reimagine "Warm editorial direction with unusually good typography"
-V0 Reimagine CLI 0.1.2 (Node.js 22.19.0)
+◆ v0 reimagine 0.1.3
 
-> Project: my-web-project
-> GitHub: https://github.com/acme/my-web-project@main
-> Vercel: acme/my-web-project
-> Source: github
+  Project          my-web-project
+  Directory        /code/my-web-project
+  Framework        Next.js
+  Package manager  pnpm
+  GitHub           acme/my-web-project · main
+  Vercel           acme/my-web-project
+  Source           GitHub
 ...
-6fDpbDcPsSj
+✓ Reimagination ready
+
+  Chat  6fDpbDcPsSj
+  URL   https://v0.app/chat/6fDpbDcPsSj
 ```
 
 The CLI is built against the [v0 Platform API v2](https://v0.app/docs/api/v2).

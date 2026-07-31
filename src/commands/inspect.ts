@@ -23,15 +23,22 @@ export async function inspectCommand(options: CliOptions, output: Output): Promi
   }
   printProjectSummary(project, prepared.selected, output)
   if (prepared.snapshot) {
-    output.info(
-      `Upload: ${prepared.snapshot.files.length} files, ${formatBytes(prepared.snapshot.archive.byteLength)} compressed`,
-    )
-    output.info(
-      `Endpoint: ${prepared.snapshot.archive.byteLength <= options.maxUploadMb * 1024 * 1024 ? 'ZIP data URL' : 'inline files'}`,
-    )
-    if (prepared.snapshot.excluded.length > 0) {
-      output.info(`Excluded: ${prepared.snapshot.excluded.length} paths`)
-    }
+    output.table([
+      {
+        label: 'Upload',
+        value: `${prepared.snapshot.files.length} files · ${formatBytes(prepared.snapshot.archive.byteLength)} compressed`,
+      },
+      {
+        label: 'Endpoint',
+        value:
+          prepared.snapshot.archive.byteLength <= options.maxUploadMb * 1024 * 1024
+            ? 'ZIP data URL'
+            : 'Inline files',
+      },
+      ...(prepared.snapshot.excluded.length > 0
+        ? [{ label: 'Excluded', value: `${prepared.snapshot.excluded.length} paths` }]
+        : []),
+    ])
     for (const warning of prepared.snapshot.secretWarnings) output.warn(warning)
   }
 }
@@ -41,13 +48,25 @@ export function printProjectSummary(
   selected: { reason?: string; type: 'github' | 'local' },
   output: Output,
 ): void {
-  output.info(`Project: ${project.name}`)
-  output.info(`Directory: ${project.projectRoot}`)
-  output.info(`Framework: ${project.framework}`)
-  output.info(`Package manager: ${project.packageManager}`)
-  output.info(
-    `GitHub: ${project.git?.githubUrl ? `${project.git.githubUrl}${project.git.branch ? `@${project.git.branch}` : ''}` : 'not available'}`,
-  )
-  output.info(`Vercel: ${vercelLabel(project.vercel)}`)
-  output.info(`Source: ${selected.type}${selected.reason ? ` — ${selected.reason}` : ''}`)
+  const repository = project.git?.githubUrl
+    ? `${project.git.githubUrl.replace(/^https:\/\/github\.com\//, '')}${project.git.branch ? ` · ${project.git.branch}` : ''}`
+    : 'Not available'
+  output.table([
+    { label: 'Project', value: project.name },
+    { label: 'Directory', value: project.projectRoot },
+    { label: 'Framework', value: project.framework },
+    { label: 'Package manager', value: project.packageManager },
+    { label: 'GitHub', value: repository },
+    { label: 'Vercel', value: vercelLabel(project.vercel) },
+    {
+      label: 'Source',
+      value: selected.type === 'github' ? 'GitHub' : 'Local working tree',
+      ...(selected.reason ? { detail: sentenceCase(selected.reason) } : {}),
+    },
+  ])
+}
+
+function sentenceCase(value: string): string {
+  const sentence = `${value.charAt(0).toUpperCase()}${value.slice(1)}`
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`
 }

@@ -47,9 +47,12 @@ export async function reimagineCommand(
 
   printProjectSummary(project, prepared.selected, output)
   if (prepared.snapshot) {
-    output.info(
-      `Upload: ${prepared.snapshot.files.length} files, ${formatBytes(prepared.snapshot.archive.byteLength)} compressed`,
-    )
+    output.table([
+      {
+        label: 'Upload',
+        value: `${prepared.snapshot.files.length} files · ${formatBytes(prepared.snapshot.archive.byteLength)} compressed`,
+      },
+    ])
   }
 
   if (
@@ -89,7 +92,10 @@ export async function reimagineCommand(
       message: result.message?.content,
     })
   } else {
-    output.info(`Chat URL: ${result.chatUrl}`)
+    output.table([
+      { label: 'Chat', value: result.chat.id },
+      { label: 'URL', value: result.chatUrl },
+    ])
     output.result(result.chat.id)
   }
   if (options.open) {
